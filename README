@@ -1,3 +1,12 @@
+=This fork:
+This fork has been modified in a few minor ways for use in the new Push Notification Service at socialscoresapi.com
+* I changed the environment variable to use Rails.env to get rid of this error
+uninitialized constant APN::App::RAILS_ENV
+* I removed the use of the global certificate since I was unable to override the default values and I do not want to use
+a global cert
+* I added an override_prod boolean to the apn::app model. When this is set to yes, the dev certificate will be used regardless
+of the environment. This is so you can send dev notifications from a real server.
+
 =APN on Rails (Apple Push Notifications on Rails)
 
 APN on Rails is a Ruby on Rails gem that allows you to easily add Apple Push Notification (iPhone)
