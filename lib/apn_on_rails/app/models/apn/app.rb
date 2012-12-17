@@ -37,7 +37,7 @@ class APN::App < APN::Base
       raise APN::Errors::MissingCertificateError.new
       return
     end
-    APN::App.send_notifications_for_cert(self.cert, self.id)
+    APN::App.send_notifications_for_cert(self.cert, self.id, self.host)
   end
 
   def self.send_notifications
@@ -48,7 +48,7 @@ class APN::App < APN::Base
 
   end
 
-  def self.send_notifications_for_cert(the_cert, app_id)
+  def self.send_notifications_for_cert(the_cert, app_id, host)
     # unless self.unsent_notifications.nil? || self.unsent_notifications.empty?
       if (app_id == nil)
         conditions = "app_id is null"
@@ -79,7 +79,7 @@ class APN::App < APN::Base
       return
     end
     unless self.unsent_group_notifications.nil? || self.unsent_group_notifications.empty?
-      APN::Connection.open_for_delivery({:cert => self.cert}) do |conn, sock|
+      APN::Connection.open_for_delivery({:cert => self.cert, :host => host}) do |conn, sock|
         unsent_group_notifications.each do |gnoty|
           gnoty.devices.find_each do |device|
             conn.write(gnoty.message_for_sending(device))
@@ -97,7 +97,7 @@ class APN::App < APN::Base
       return
     end
     unless gnoty.nil?
-      APN::Connection.open_for_delivery({:cert => self.cert}) do |conn, sock|
+      APN::Connection.open_for_delivery({:cert => self.cert, :host => host}) do |conn, sock|
         gnoty.devices.find_each do |device|
           conn.write(gnoty.message_for_sending(device))
         end
