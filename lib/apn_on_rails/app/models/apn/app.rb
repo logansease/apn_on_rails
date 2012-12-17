@@ -15,6 +15,16 @@ class APN::App < APN::Base
     end
   end
 
+  def host
+    dev_host = "gateway.sandbox.push.apple.com"
+    prod_host = "gateway.push.apple.com"
+    if(self.override_prod)
+      dev_host
+    else
+    (Rails.env == 'production' ? prod_host : dev_host)
+    end
+  end
+
   # Opens a connection to the Apple APN server and attempts to batch deliver
   # an Array of group notifications.
   #
@@ -45,8 +55,10 @@ class APN::App < APN::Base
       else
         conditions = ["app_id = ?", app_id]
       end
+
+
       begin
-        APN::Connection.open_for_delivery({:cert => the_cert}) do |conn, sock|
+        APN::Connection.open_for_delivery({:cert => the_cert, :host => host}) do |conn, sock|
           APN::Device.find_each(:conditions => conditions) do |dev|
             dev.unsent_notifications.each do |noty|
               conn.write(noty.message_for_sending)
