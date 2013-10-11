@@ -3,7 +3,7 @@ class CreateApnApps < ActiveRecord::Migration # :nodoc:
     create_table :apn_apps do |t|
       t.text :apn_dev_cert
       t.text :apn_prod_cert
-
+      t.boolean :override_prod
       t.timestamps
     end
 
