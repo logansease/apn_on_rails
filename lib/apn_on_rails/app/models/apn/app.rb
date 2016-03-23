@@ -59,7 +59,7 @@ class APN::App < APN::Base
 
       begin
         APN::Connection.open_for_delivery({:cert => the_cert, :host => host}) do |conn, sock|
-          APN::Device.where(conditions) do |dev|
+          APN::Device.where(conditions).each do |dev|
             dev.unsent_notifications.each do |noty|
               conn.write(noty.message_for_sending)
               noty.sent_at = Time.now
