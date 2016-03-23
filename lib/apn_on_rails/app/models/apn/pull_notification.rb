@@ -5,24 +5,22 @@ class APN::PullNotification < APN::Base
 
   def self.latest_since(app_id, since_date=nil)
     if since_date
-      res = first(:order => "created_at DESC", 
-                  :conditions => ["app_id = ? AND created_at > ? AND launch_notification = ?", app_id, since_date, false])
+      res = where("app_id = ? AND created_at > ? AND launch_notification = ?", app_id, since_date, false).order("created_at DESC").first
     else
-      res = first(:order => "created_at DESC", 
-                  :conditions => ["app_id = ? AND launch_notification = ?", app_id, true])
-      res = first(:order => "created_at DESC", 
-                  :conditions => ["app_id = ? AND launch_notification = ?", app_id, false]) unless res
+
+      res = where("app_id = ? AND launch_notification = ?", app_id, true).order("created_at DESC").first
+
+      res = where("app_id = ? AND launch_notification = ?", app_id, false).order("created_at DESC").first unless res
     end
     res
   end
   
   def self.all_since(app_id, since_date=nil)
     if since_date
-      res = all(:order => "created_at DESC", 
-                :conditions => ["app_id = ? AND created_at > ? AND launch_notification = ?", app_id, since_date, false])
+      res = where("app_id = ? AND created_at > ? AND launch_notification = ?", app_id, since_date, false).order("created_at DESC")
     else 
-      res = all(:order => "created_at DESC", 
-                :conditions => ["app_id = ? AND launch_notification = ?", app_id, false])
+      res = where("app_id = ? AND launch_notification = ?", app_id, false).order("created_at DESC")
     end
+    res
   end
 end
