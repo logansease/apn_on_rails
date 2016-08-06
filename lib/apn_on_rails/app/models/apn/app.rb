@@ -11,17 +11,24 @@ class APN::App < APN::Base
     if(self.override_prod)
       apn_dev_cert
     else
-    (Rails.env == 'production' ? apn_prod_cert : apn_dev_cert)
+      (Rails.env == 'production' || Rails.env == 'staging' ? apn_prod_cert : apn_dev_cert)
     end
   end
 
   def host
+    host = configatron.apn.host
+
+    if host
+      return host
+    end
+
     dev_host = "gateway.sandbox.push.apple.com"
     prod_host = "gateway.push.apple.com"
+
     if(self.override_prod)
       dev_host
     else
-    (Rails.env == 'production' ? prod_host : dev_host)
+      (Rails.env == 'production' || Rails.env == 'staging' ? prod_host : dev_host)
     end
   end
 

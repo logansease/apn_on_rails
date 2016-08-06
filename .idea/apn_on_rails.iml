@@ -22,7 +22,7 @@
     <orderEntry type="library" scope="PROVIDED" name="configatron (v4.5.0, RVM: ruby-2.2.0 [phraseparty]) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="erubis (v2.7.0, RVM: ruby-2.2.0 [phraseparty]) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="hike (v1.2.1, RVM: ruby-2.2.0 [phraseparty]) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="rake (v10.0.4, RVM: ruby-2.2.0 [phraseparty]) [gem]" level="application" />
+    <orderEntry type="library" scope="PROVIDED" name="rake (v11.1.1, RVM: ruby-2.2.0 [phraseparty]) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="sqlite3 (v1.3.11, RVM: ruby-2.2.0 [phraseparty]) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="yamler (v0.1.0, RVM: ruby-2.2.0 [phraseparty]) [gem]" level="application" />
   </component>
