@@ -59,10 +59,10 @@ class APN::App < APN::Base
       begin
         APN::Connection.open_for_delivery({:cert => the_cert, :host => host}) do |conn, sock|
             notifications = APN::Notification.joins(:device).where(:apn_devices => {:app_id => app_id}).where(:sent_at => nil)
-            notifications.update_all :sent_at => Time.now
             notifications.each do |noty|
               conn.write(noty.message_for_sending)
             end
+            notifications.update_all :sent_at => Time.now
         end
 
       rescue Exception => e
