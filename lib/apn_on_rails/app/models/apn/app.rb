@@ -60,8 +60,10 @@ class APN::App < APN::Base
         APN::Connection.open_for_delivery({:cert => the_cert, :host => host}) do |conn, sock|
             notifications = APN::Notification.joins(:device).where(:apn_devices => {:app_id => app_id}).where(:sent_at => nil)
             notification_ids = notifications.pluck(:id)
-            APN::Notification.where(:id =>  notification_ids).update_all :sent_at => Time.now
-            notifications.each do |noty|
+            notifications.update_all :sent_at => Time.now
+
+            #if we use notifications, it'll lazy run our query and nothing will send
+            APN::Notification.where(:id =>  notification_ids).find_each do |noty|
               conn.write(noty.message_for_sending)
             end
         end
