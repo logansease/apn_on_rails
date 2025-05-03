@@ -3,7 +3,7 @@ module APN
     
     class << self
       
-      # Yields up an SSL socket to write notifications to.
+      # Yields up an HTTP/2 connection to write notifications to.
       # The connections are close automatically.
       # 
       #  Example:
@@ -14,11 +14,14 @@ module APN
       # Configuration parameters are:
       # 
       #   configatron.apn.passphrase = ''
-      #   configatron.apn.port = 2195
-      #   configatron.apn.host = 'gateway.sandbox.push.apple.com' # Development
-      #   configatron.apn.host = 'gateway.push.apple.com' # Production
+      #   configatron.apn.port = 443
+      #   configatron.apn.host = 'api.sandbox.push.apple.com' # Development
+      #   configatron.apn.host = 'api.push.apple.com' # Production
       #   configatron.apn.cert = File.join(rails_root, 'config', 'apple_push_notification_development.pem')) # Development
       #   configatron.apn.cert = File.join(rails_root, 'config', 'apple_push_notification_production.pem')) # Production
+      #   configatron.apn.topic = 'com.example.app' # Bundle ID
+      #   configatron.apn.priority = 10 # Default priority
+      #   configatron.apn.auth_token = 'your_auth_token' # For token-based auth
       def open_for_delivery(options = {}, &block)
         open(options, &block)
       end
@@ -43,25 +46,29 @@ module APN
       
       private
       def open(options = {}, &block) # :nodoc:
-        options = {:cert => configatron.apn.cert,
-                   :passphrase => configatron.apn.passphrase,
-                   #:host => configatron.apn.host,
-                   :port => configatron.apn.port}.merge(options)
-        #cert = File.read(options[:cert])
-        cert = options[:cert]
-        ctx = OpenSSL::SSL::SSLContext.new
-        ctx.key = OpenSSL::PKey::RSA.new(cert, options[:passphrase])
-        ctx.cert = OpenSSL::X509::Certificate.new(cert)
-  
-        sock = TCPSocket.new(options[:host], options[:port])
-        ssl = OpenSSL::SSL::SSLSocket.new(sock, ctx)
-        ssl.sync = true
-        ssl.connect
-  
-        yield ssl, sock if block_given?
-  
-        ssl.close
-        sock.close
+        options = {
+          :cert => configatron.apn.cert,
+          :passphrase => configatron.apn.passphrase,
+          :port => 443,
+          :use_ssl => true
+        }.merge(options)
+
+        require 'net/http'
+        require 'net/https'
+        
+        uri = URI("https://#{options[:host]}:#{options[:port]}")
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = true
+        
+        # Only set up certificate if no auth token is provided
+        if options[:cert] && !options[:auth_token]
+          http.cert = OpenSSL::X509::Certificate.new(options[:cert])
+          http.key = OpenSSL::PKey::RSA.new(options[:cert], options[:passphrase])
+        end
+        
+        http.start do |http|
+          yield http, nil if block_given?
+        end
       end
       
     end

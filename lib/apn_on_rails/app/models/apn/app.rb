@@ -22,14 +22,30 @@ class APN::App < APN::Base
       return host
     end
 
-    dev_host = "gateway.sandbox.push.apple.com"
-    prod_host = "gateway.push.apple.com"
+    dev_host = "api.sandbox.push.apple.com"
+    prod_host = "api.push.apple.com"
 
     if(self.override_prod)
       dev_host
     else
       (Rails.env == 'production' || Rails.env == 'staging' ? prod_host : dev_host)
     end
+  end
+
+  def apns_topic
+    ENV['APNS_TOPIC'] || configatron.apn.topic
+  end
+
+  def apns_priority
+    ENV['APNS_PRIORITY'] || configatron.apn.priority || 10
+  end
+
+  def auth_token
+    ENV['APNS_AUTH_TOKEN'] || configatron.apn.auth_token
+  end
+
+  def use_token_auth?
+    !auth_token.nil?
   end
 
   # Opens a connection to the Apple APN server and attempts to batch deliver
@@ -56,34 +72,80 @@ class APN::App < APN::Base
   end
 
   def self.send_notifications_for_cert(the_cert, app_id, host)
-      begin
-        APN::Connection.open_for_delivery({:cert => the_cert, :host => host}) do |conn, sock|
-            notifications = APN::Notification.joins(:device).where(:apn_devices => {:app_id => app_id}).where(:sent_at => nil)
-            notification_ids = notifications.pluck(:id)
-            notifications.update_all :sent_at => Time.now
-
-            #if we use notifications, it'll lazy run our query and nothing will send
-            APN::Notification.where(:id =>  notification_ids).find_each do |noty|
-              conn.write(noty.message_for_sending)
-            end
-        end
-
-      rescue Exception => e
-        log_connection_exception(e)
+    begin
+      app = APN::App.find(app_id)
+      connection_options = { :host => host }
+      
+      # Only include cert if no auth token is present
+      if !app.use_token_auth?
+        connection_options[:cert] = the_cert
       end
-    # end
+      
+      APN::Connection.open_for_delivery(connection_options) do |http|
+        notifications = APN::Notification.joins(:device).where(:apn_devices => {:app_id => app_id}).where(:sent_at => nil)
+        notification_ids = notifications.pluck(:id)
+        notifications.update_all :sent_at => Time.now
+
+        APN::Notification.where(:id => notification_ids).find_each do |noty|
+          path = "/3/device/#{noty.device.token.delete(' ')}"
+          headers = {
+            'apns-topic' => noty.app.apns_topic,
+            'apns-priority' => noty.app.apns_priority.to_s
+          }
+          
+          if noty.app.use_token_auth?
+            headers['authorization'] = "bearer #{noty.app.auth_token}"
+          end
+          
+          request = Net::HTTP::Post.new(path, headers)
+          request.body = noty.to_apple_json
+          
+          response = http.request(request)
+          
+          if response.code != '200'
+            Rails.logger.error "APN Error: #{response.code} - #{response.body}"
+          end
+        end
+      end
+    rescue Exception => e
+      log_connection_exception(e)
+    end
   end
 
   def send_group_notifications
-    if self.cert.nil?
+    if self.cert.nil? && !self.use_token_auth?
       raise APN::Errors::MissingCertificateError.new
       return
     end
     unless self.unsent_group_notifications.nil? || self.unsent_group_notifications.empty?
-      APN::Connection.open_for_delivery({:cert => self.cert, :host => host}) do |conn, sock|
+      connection_options = { :host => host }
+      
+      # Only include cert if no auth token is present
+      if !self.use_token_auth?
+        connection_options[:cert] = self.cert
+      end
+      
+      APN::Connection.open_for_delivery(connection_options) do |http|
         unsent_group_notifications.each do |gnoty|
           gnoty.devices.find_each do |device|
-            conn.write(gnoty.message_for_sending(device))
+            path = "/3/device/#{device.token.delete(' ')}"
+            headers = {
+              'apns-topic' => self.apns_topic,
+              'apns-priority' => self.apns_priority.to_s
+            }
+            
+            if self.use_token_auth?
+              headers['authorization'] = "bearer #{self.auth_token}"
+            end
+            
+            request = Net::HTTP::Post.new(path, headers)
+            request.body = gnoty.to_apple_json
+            
+            response = http.request(request)
+            
+            if response.code != '200'
+              Rails.logger.error "APN Error: #{response.code} - #{response.body}"
+            end
           end
           gnoty.sent_at = Time.now
           gnoty.save
@@ -93,14 +155,38 @@ class APN::App < APN::Base
   end
 
   def send_group_notification(gnoty)
-    if self.cert.nil?
+    if self.cert.nil? && !self.use_token_auth?
       raise APN::Errors::MissingCertificateError.new
       return
     end
     unless gnoty.nil?
-      APN::Connection.open_for_delivery({:cert => self.cert, :host => host}) do |conn, sock|
+      connection_options = { :host => host }
+      
+      # Only include cert if no auth token is present
+      if !self.use_token_auth?
+        connection_options[:cert] = self.cert
+      end
+      
+      APN::Connection.open_for_delivery(connection_options) do |http|
         gnoty.devices.find_each do |device|
-          conn.write(gnoty.message_for_sending(device))
+          path = "/3/device/#{device.token.delete(' ')}"
+          headers = {
+            'apns-topic' => self.apns_topic,
+            'apns-priority' => self.apns_priority.to_s
+          }
+          
+          if self.use_token_auth?
+            headers['authorization'] = "bearer #{self.auth_token}"
+          end
+          
+          request = Net::HTTP::Post.new(path, headers)
+          request.body = gnoty.to_apple_json
+          
+          response = http.request(request)
+          
+          if response.code != '200'
+            Rails.logger.error "APN Error: #{response.code} - #{response.body}"
+          end
         end
         gnoty.sent_at = Time.now
         gnoty.save
