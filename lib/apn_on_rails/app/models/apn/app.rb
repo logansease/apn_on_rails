@@ -16,12 +16,10 @@ class APN::App < APN::Base
   end
 
   def host
-    host = configatron.apn.host
+    # First check if host is explicitly set in ENV
+    return ENV['APN_HOST'] if ENV['APN_HOST'].present?
 
-    if host
-      return host
-    end
-
+    # Otherwise determine based on environment and override_prod setting
     dev_host = "api.sandbox.push.apple.com"
     prod_host = "api.push.apple.com"
 
@@ -33,15 +31,15 @@ class APN::App < APN::Base
   end
 
   def apns_topic
-    ENV['APNS_TOPIC'] || configatron.apn.topic
+    ENV['APNS_TOPIC']
   end
 
   def apns_priority
-    ENV['APNS_PRIORITY'] || configatron.apn.priority || 10
+    ENV['APNS_PRIORITY']&.to_i || 10
   end
 
   def auth_token
-    ENV['APNS_AUTH_TOKEN'] || configatron.apn.auth_token
+    ENV['APNS_AUTH_TOKEN']
   end
 
   def use_token_auth?
@@ -50,7 +48,6 @@ class APN::App < APN::Base
 
   # Opens a connection to the Apple APN server and attempts to batch deliver
   # an Array of group notifications.
-  #
   #
   # As each APN::GroupNotification is sent the <tt>sent_at</tt> column will be timestamped,
   # so as to not be sent again.
@@ -68,7 +65,6 @@ class APN::App < APN::Base
     apps.each do |app|
       app.send_notifications
     end
-
   end
 
   def self.send_notifications_for_cert(the_cert, app_id, host)

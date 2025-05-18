@@ -13,15 +13,13 @@ module APN
       # 
       # Configuration parameters are:
       # 
-      #   configatron.apn.passphrase = ''
-      #   configatron.apn.port = 443
-      #   configatron.apn.host = 'api.sandbox.push.apple.com' # Development
-      #   configatron.apn.host = 'api.push.apple.com' # Production
-      #   configatron.apn.cert = File.join(rails_root, 'config', 'apple_push_notification_development.pem')) # Development
-      #   configatron.apn.cert = File.join(rails_root, 'config', 'apple_push_notification_production.pem')) # Production
-      #   configatron.apn.topic = 'com.example.app' # Bundle ID
-      #   configatron.apn.priority = 10 # Default priority
-      #   configatron.apn.auth_token = 'your_auth_token' # For token-based auth
+      #   ENV['APN_PASSPHRASE'] = ''
+      #   ENV['APN_PORT'] = '443'
+      #   ENV['APN_CERT'] = File.join(rails_root, 'config', 'apple_push_notification_development.pem')) # Development
+      #   ENV['APN_CERT'] = File.join(rails_root, 'config', 'apple_push_notification_production.pem')) # Production
+      #   ENV['APN_TOPIC'] = 'com.example.app' # Bundle ID
+      #   ENV['APN_PRIORITY'] = '10' # Default priority
+      #   ENV['APN_AUTH_TOKEN'] = 'your_auth_token' # For token-based auth
       def open_for_delivery(options = {}, &block)
         open(options, &block)
       end
@@ -30,25 +28,22 @@ module APN
       # The connections are close automatically.
       # Configuration parameters are:
       # 
-      #   configatron.apn.feedback.passphrase = ''
-      #   configatron.apn.feedback.port = 2196
-      #   configatron.apn.feedback.host = 'feedback.sandbox.push.apple.com' # Development
-      #   configatron.apn.feedback.host = 'feedback.push.apple.com' # Production
-      #   configatron.apn.feedback.cert = File.join(rails_root, 'config', 'apple_push_notification_development.pem')) # Development
-      #   configatron.apn.feedback.cert = File.join(rails_root, 'config', 'apple_push_notification_production.pem')) # Production
+      #   ENV['APN_FEEDBACK_PASSPHRASE'] = ''
+      #   ENV['APN_FEEDBACK_PORT'] = '2196'
+      #   ENV['APN_FEEDBACK_CERT'] = File.join(rails_root, 'config', 'apple_push_notification_development.pem')) # Development
+      #   ENV['APN_FEEDBACK_CERT'] = File.join(rails_root, 'config', 'apple_push_notification_production.pem')) # Production
       def open_for_feedback(options = {}, &block)
-        options = {:cert => configatron.apn.feedback.cert,
-                   :passphrase => configatron.apn.feedback.passphrase,
-                   :host => configatron.apn.feedback.host,
-                   :port => configatron.apn.feedback.port}.merge(options)
+        options = {
+          :passphrase => ENV['APN_FEEDBACK_PASSPHRASE'],
+          :host => 'feedback.sandbox.push.apple.com', # Default to sandbox
+          :port => 2196
+        }.merge(options)
         open(options, &block)
       end
       
       private
       def open(options = {}, &block) # :nodoc:
         options = {
-        #  :cert => configatron.apn.cert,
-        #  :passphrase => configatron.apn.passphrase,
           :port => 443,
           :use_ssl => true
         }.merge(options)
