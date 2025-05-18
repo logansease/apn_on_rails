@@ -52,6 +52,12 @@ module APN # :nodoc:
       end
     end
 
+    class CertificateError < StandardError
+      def initialize(message)
+        super(message)
+      end
+    end
+
   end # Errors
 
 end # APN

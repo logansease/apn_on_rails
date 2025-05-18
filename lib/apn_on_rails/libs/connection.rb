@@ -47,8 +47,8 @@ module APN
       private
       def open(options = {}, &block) # :nodoc:
         options = {
-          :cert => configatron.apn.cert,
-          :passphrase => configatron.apn.passphrase,
+        #  :cert => configatron.apn.cert,
+        #  :passphrase => configatron.apn.passphrase,
           :port => 443,
           :use_ssl => true
         }.merge(options)
@@ -61,9 +61,14 @@ module APN
         http.use_ssl = true
         
         # Only set up certificate if no auth token is provided
-        if options[:cert]
-          http.cert = OpenSSL::X509::Certificate.new(options[:cert])
-          http.key = OpenSSL::PKey::RSA.new(options[:cert], options[:passphrase])
+        if options[:cert] && !options[:auth_token]
+          begin
+            http.cert = OpenSSL::X509::Certificate.new(options[:cert])
+            http.key = OpenSSL::PKey::RSA.new(options[:cert], options[:passphrase])
+          rescue OpenSSL::X509::CertificateError, OpenSSL::PKey::RSAError => e
+            Rails.logger.error "Failed to load APN certificate: #{e.message}"
+            # raise APN::Errors::CertificateError.new("Failed to load APN certificate: #{e.message}")
+          end
         end
         
         http.start do |http|
