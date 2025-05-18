@@ -57,8 +57,8 @@ class APN::App < APN::Base
   #
   def send_notifications
     if self.cert.nil?
-      raise APN::Errors::MissingCertificateError.new
-      return
+     # raise APN::Errors::MissingCertificateError.new
+     # return
     end
     APN::App.send_notifications_for_cert(self.cert, self.id, self.host)
   end

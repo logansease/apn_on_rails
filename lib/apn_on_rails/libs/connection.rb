@@ -61,7 +61,7 @@ module APN
         http.use_ssl = true
         
         # Only set up certificate if no auth token is provided
-        if options[:cert] && !options[:auth_token]
+        if options[:cert]
           http.cert = OpenSSL::X509::Certificate.new(options[:cert])
           http.key = OpenSSL::PKey::RSA.new(options[:cert], options[:passphrase])
         end
