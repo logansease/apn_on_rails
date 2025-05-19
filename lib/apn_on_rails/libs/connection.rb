@@ -14,7 +14,6 @@ module APN
       # Configuration parameters are:
       # 
       #   ENV['APN_PASSPHRASE'] = ''
-      #   ENV['APN_PORT'] = '443'
       #   ENV['APN_CERT'] = File.join(rails_root, 'config', 'apple_push_notification_development.pem')) # Development
       #   ENV['APN_CERT'] = File.join(rails_root, 'config', 'apple_push_notification_production.pem')) # Production
       #   ENV['APN_TOPIC'] = 'com.example.app' # Bundle ID
@@ -29,9 +28,6 @@ module APN
       # Configuration parameters are:
       # 
       #   ENV['APN_FEEDBACK_PASSPHRASE'] = ''
-      #   ENV['APN_FEEDBACK_PORT'] = '2196'
-      #   ENV['APN_FEEDBACK_CERT'] = File.join(rails_root, 'config', 'apple_push_notification_development.pem')) # Development
-      #   ENV['APN_FEEDBACK_CERT'] = File.join(rails_root, 'config', 'apple_push_notification_production.pem')) # Production
       def open_for_feedback(options = {}, &block)
         options = {
           :passphrase => ENV['APN_FEEDBACK_PASSPHRASE'],
@@ -55,6 +51,13 @@ module APN
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = true
         
+        # Configure HTTP/2 settings
+        http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+        http.ssl_version = :TLSv1_2
+        http.keep_alive_timeout = 30
+        http.read_timeout = 30
+        http.write_timeout = 30
+        
         # Only set up certificate if no auth token is provided
         if options[:cert] && !options[:auth_token]
           begin
@@ -66,8 +69,25 @@ module APN
           end
         end
         
-        http.start do |http|
-          yield http, nil if block_given?
+        begin
+          http.start do |http|
+            yield http, nil if block_given?
+          end
+        rescue EOFError => e
+          Rails.logger.error "APN Connection EOF Error: #{e.message}"
+          raise APN::Errors::ConnectionError.new("Connection closed unexpectedly: #{e.message}")
+        rescue OpenSSL::SSL::SSLError => e
+          Rails.logger.error "APN SSL Error: #{e.message}"
+          raise APN::Errors::ConnectionError.new("SSL Error: #{e.message}")
+        rescue Net::ReadTimeout => e
+          Rails.logger.error "APN Read Timeout: #{e.message}"
+          raise APN::Errors::ConnectionError.new("Read timeout: #{e.message}")
+        rescue Net::WriteTimeout => e
+          Rails.logger.error "APN Write Timeout: #{e.message}"
+          raise APN::Errors::ConnectionError.new("Write timeout: #{e.message}")
+        rescue => e
+          Rails.logger.error "APN Connection Error: #{e.message}"
+          raise APN::Errors::ConnectionError.new("Connection error: #{e.message}")
         end
       end
       
