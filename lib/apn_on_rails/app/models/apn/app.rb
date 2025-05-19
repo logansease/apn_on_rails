@@ -86,7 +86,8 @@ class APN::App < APN::Base
           path = "/3/device/#{noty.device.token.delete(' ')}"
           headers = {
             'apns-topic' => noty.app.apns_topic,
-            'apns-priority' => noty.app.apns_priority.to_s
+            'apns-priority' => noty.app.apns_priority.to_s,
+            'apns-push-type' => noty.background ? 'background' : 'alert'
           }
           
           if noty.app.use_token_auth?
@@ -97,7 +98,9 @@ class APN::App < APN::Base
           request.body = noty.to_apple_json
           
           response = http.request(request)
-          
+          puts "push response: #{response.code}"
+          puts "push response.body: #{response.body}"
+
           if response.code != '200'
             Rails.logger.error "APN Error: #{response.code} - #{response.body}"
           end
