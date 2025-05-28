@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="658645ee-5fd6-46bd-aad9-4cb852d63a3e" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/lib/apn_on_rails/app/models/apn/app.rb" afterPath="$PROJECT_DIR$/lib/apn_on_rails/app/models/apn/app.rb" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/lib/apn_on_rails/version.rb" afterPath="$PROJECT_DIR$/lib/apn_on_rails/version.rb" />
-    </list>
+    <list default="true" id="658645ee-5fd6-46bd-aad9-4cb852d63a3e" name="Default" comment="" />
     <ignored path="apn_on_rails.iws" />
     <ignored path=".idea/workspace.xml" />
     <option name="TRACKING_ENABLED" value="true" />

@@ -3,7 +3,7 @@ module APN
     
     class << self
       
-      # Yields up an SSL socket to write notifications to.
+      # Yields up an HTTP/2 connection to write notifications to.
       # The connections are close automatically.
       # 
       #  Example:
@@ -13,12 +13,12 @@ module APN
       # 
       # Configuration parameters are:
       # 
-      #   configatron.apn.passphrase = ''
-      #   configatron.apn.port = 2195
-      #   configatron.apn.host = 'gateway.sandbox.push.apple.com' # Development
-      #   configatron.apn.host = 'gateway.push.apple.com' # Production
-      #   configatron.apn.cert = File.join(rails_root, 'config', 'apple_push_notification_development.pem')) # Development
-      #   configatron.apn.cert = File.join(rails_root, 'config', 'apple_push_notification_production.pem')) # Production
+      #   ENV['APN_PASSPHRASE'] = ''
+      #   ENV['APN_CERT'] = File.join(rails_root, 'config', 'apple_push_notification_development.pem')) # Development
+      #   ENV['APN_CERT'] = File.join(rails_root, 'config', 'apple_push_notification_production.pem')) # Production
+      #   ENV['APN_TOPIC'] = 'com.example.app' # Bundle ID
+      #   ENV['APN_PRIORITY'] = '10' # Default priority
+      #   ENV['APN_AUTH_TOKEN'] = 'your_auth_token' # For token-based auth
       def open_for_delivery(options = {}, &block)
         open(options, &block)
       end
@@ -27,41 +27,68 @@ module APN
       # The connections are close automatically.
       # Configuration parameters are:
       # 
-      #   configatron.apn.feedback.passphrase = ''
-      #   configatron.apn.feedback.port = 2196
-      #   configatron.apn.feedback.host = 'feedback.sandbox.push.apple.com' # Development
-      #   configatron.apn.feedback.host = 'feedback.push.apple.com' # Production
-      #   configatron.apn.feedback.cert = File.join(rails_root, 'config', 'apple_push_notification_development.pem')) # Development
-      #   configatron.apn.feedback.cert = File.join(rails_root, 'config', 'apple_push_notification_production.pem')) # Production
+      #   ENV['APN_FEEDBACK_PASSPHRASE'] = ''
       def open_for_feedback(options = {}, &block)
-        options = {:cert => configatron.apn.feedback.cert,
-                   :passphrase => configatron.apn.feedback.passphrase,
-                   :host => configatron.apn.feedback.host,
-                   :port => configatron.apn.feedback.port}.merge(options)
+        options = {
+          :passphrase => ENV['APN_FEEDBACK_PASSPHRASE'],
+          :host => 'feedback.sandbox.push.apple.com', # Default to sandbox
+          :port => 2196
+        }.merge(options)
         open(options, &block)
       end
       
       private
       def open(options = {}, &block) # :nodoc:
-        options = {:cert => configatron.apn.cert,
-                   :passphrase => configatron.apn.passphrase,
-                   #:host => configatron.apn.host,
-                   :port => configatron.apn.port}.merge(options)
-        #cert = File.read(options[:cert])
-        cert = options[:cert]
-        ctx = OpenSSL::SSL::SSLContext.new
-        ctx.key = OpenSSL::PKey::RSA.new(cert, options[:passphrase])
-        ctx.cert = OpenSSL::X509::Certificate.new(cert)
-  
-        sock = TCPSocket.new(options[:host], options[:port])
-        ssl = OpenSSL::SSL::SSLSocket.new(sock, ctx)
-        ssl.sync = true
-        ssl.connect
-  
-        yield ssl, sock if block_given?
-  
-        ssl.close
-        sock.close
+        options = {
+          :port => 443,
+          :use_ssl => true
+        }.merge(options)
+
+        require 'net/http'
+        require 'net/https'
+        
+        uri = URI("https://#{options[:host]}:#{options[:port]}")
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = true
+        
+        # Configure HTTP/2 settings
+        http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+        http.ssl_version = :TLSv1_2
+        http.keep_alive_timeout = 30
+        http.read_timeout = 30
+        http.write_timeout = 30
+        
+        # Only set up certificate if no auth token is provided
+        if options[:cert] && !options[:auth_token]
+          begin
+            http.cert = OpenSSL::X509::Certificate.new(options[:cert])
+            http.key = OpenSSL::PKey::RSA.new(options[:cert], options[:passphrase])
+          rescue OpenSSL::X509::CertificateError, OpenSSL::PKey::RSAError => e
+            Rails.logger.error "Failed to load APN certificate: #{e.message}"
+            # raise APN::Errors::CertificateError.new("Failed to load APN certificate: #{e.message}")
+          end
+        end
+        
+        begin
+          http.start do |http|
+            yield http, nil if block_given?
+          end
+        rescue EOFError => e
+          Rails.logger.error "APN Connection EOF Error: #{e.message}"
+          raise APN::Errors::ConnectionError.new("Connection closed unexpectedly: #{e.message}")
+        rescue OpenSSL::SSL::SSLError => e
+          Rails.logger.error "APN SSL Error: #{e.message}"
+          raise APN::Errors::ConnectionError.new("SSL Error: #{e.message}")
+        rescue Net::ReadTimeout => e
+          Rails.logger.error "APN Read Timeout: #{e.message}"
+          raise APN::Errors::ConnectionError.new("Read timeout: #{e.message}")
+        rescue Net::WriteTimeout => e
+          Rails.logger.error "APN Write Timeout: #{e.message}"
+          raise APN::Errors::ConnectionError.new("Write timeout: #{e.message}")
+        rescue => e
+          Rails.logger.error "APN Connection Error: #{e.message}"
+          raise APN::Errors::ConnectionError.new("Connection error: #{e.message}")
+        end
       end
       
     end
